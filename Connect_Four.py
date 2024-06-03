@@ -1,133 +1,148 @@
-import random
+import numpy as np
+import pygame
+import sys
+import math
 
-print("Welcome to Connect Four")
-print("-----------------------")
+BLUE = (0,0,255)
+BLACK = (0,0,0)
+RED = (255,0,0)
+YELLOW = (255,255,0)
 
-possibleLetters = ["A","B","C","D","E","F","G"]
-gameBoard = [["","","","","","",""], ["","","","","","",""], ["","","","","","",""], ["","","","","","",""], ["","","","","","",""], ["","","","","","",""]]
+ROW_COUNT = 6
+COLUMN_COUNT = 7
 
-rows = 6
-cols = 7
+def create_board():
+	board = np.zeros((ROW_COUNT,COLUMN_COUNT))
+	return board
 
-def printGameBoard():
-  print("\n     A    B    C    D    E    F    G  ", end="")
-  for x in range(rows):
-    print("\n   +----+----+----+----+----+----+----+")
-    print(x, " |", end="")
-    for y in range(cols):
-      if(gameBoard[x][y] == "🔵"):
-        print("",gameBoard[x][y], end=" |")
-      elif(gameBoard[x][y] == "🔴"):
-        print("", gameBoard[x][y], end=" |")
-      else:
-        print(" ", gameBoard[x][y], end="  |")
-  print("\n   +----+----+----+----+----+----+----+")
+def drop_piece(board, row, col, piece):
+	board[row][col] = piece
 
-def modifyArray(spacePicked, turn):
-  gameBoard[spacePicked[0]][spacePicked[1]] = turn
+def is_valid_location(board, col):
+	return board[ROW_COUNT-1][col] == 0
 
-def checkForWinner(chip):
-  ### Check horizontal spaces
-  for y in range(rows):
-    for x in range(cols - 3):
-      if gameBoard[x][y] == chip and gameBoard[x+1][y] == chip and gameBoard[x+2][y] == chip and gameBoard[x+3][y] == chip:
-        print("\nGame over", chip, "wins! Thank you for playing :)")
-        return True
+def get_next_open_row(board, col):
+	for r in range(ROW_COUNT):
+		if board[r][col] == 0:
+			return r
 
-  ### Check vertical spaces
-  for x in range(rows):
-    for y in range(cols - 3):
-      if gameBoard[x][y] == chip and gameBoard[x][y+1] == chip and gameBoard[x][y+2] == chip and gameBoard[x][y+3] == chip:
-        print("\nGame over", chip, "wins! Thank you for playing :)")
-        return True
+def print_board(board):
+	print(np.flip(board, 0))
 
-  ### Check upper right to bottom left diagonal spaces
-  for x in range(rows - 3):
-    for y in range(3, cols):
-      if gameBoard[x][y] == chip and gameBoard[x+1][y-1] == chip and gameBoard[x+2][y-2] == chip and gameBoard[x+3][y-3] == chip:
-        print("\nGame over", chip, "wins! Thank you for playing :)")
-        return True
+def winning_move(board, piece):
+	# Check horizontal locations for win
+	for c in range(COLUMN_COUNT-3):
+		for r in range(ROW_COUNT):
+			if board[r][c] == piece and board[r][c+1] == piece and board[r][c+2] == piece and board[r][c+3] == piece:
+				return True
 
-  ### Check upper left to bottom right diagonal spaces
-  for x in range(rows - 3):
-    for y in range(cols - 3):
-      if gameBoard[x][y] == chip and gameBoard[x+1][y+1] == chip and gameBoard[x+2][y+2] == chip and gameBoard[x+3][y+3] == chip:
-        print("\nGame over", chip, "wins! Thank you for playing :)")
-        return True
-  return False
+	# Check vertical locations for win
+	for c in range(COLUMN_COUNT):
+		for r in range(ROW_COUNT-3):
+			if board[r][c] == piece and board[r+1][c] == piece and board[r+2][c] == piece and board[r+3][c] == piece:
+				return True
 
-def coordinateParser(inputString):
-  coordinate = [None] * 2
-  if(inputString[0] == "A"):
-    coordinate[1] = 0
-  elif(inputString[0] == "B"):
-    coordinate[1] = 1
-  elif(inputString[0] == "C"):
-    coordinate[1] = 2
-  elif(inputString[0] == "D"):
-    coordinate[1] = 3
-  elif(inputString[0] == "E"):
-    coordinate[1] = 4
-  elif(inputString[0] == "F"):
-    coordinate[1] = 5
-  elif(inputString[0] == "G"):
-    coordinate[1] = 6
-  else:
-    print("Invalid")
-  coordinate[0] = int(inputString[1])
-  return coordinate
+	# Check positively sloped diaganols
+	for c in range(COLUMN_COUNT-3):
+		for r in range(ROW_COUNT-3):
+			if board[r][c] == piece and board[r+1][c+1] == piece and board[r+2][c+2] == piece and board[r+3][c+3] == piece:
+				return True
 
-def isSpaceAvailable(intendedCoordinate):
-  if(gameBoard[intendedCoordinate[0]][intendedCoordinate[1]] == '🔴'):
-    return False
-  elif(gameBoard[intendedCoordinate[0]][intendedCoordinate[1]] == '🔵'):
-    return False
-  else:
-    return True
+	# Check negatively sloped diaganols
+	for c in range(COLUMN_COUNT-3):
+		for r in range(3, ROW_COUNT):
+			if board[r][c] == piece and board[r-1][c+1] == piece and board[r-2][c+2] == piece and board[r-3][c+3] == piece:
+				return True
 
-def gravityChecker(intendedCoordinate):
-  ### Calculate space below
-  spaceBelow = [None] * 2
-  spaceBelow[0] = intendedCoordinate[0] + 1
-  spaceBelow[1] = intendedCoordinate[1]
-  ### Is the coordinate at ground level
-  if(spaceBelow[0] == 6):
-    return True
-  ### Check if there's a token below
-  if(isSpaceAvailable(spaceBelow) == False):
-    return True
-  return False
+def draw_board(board):
+	for c in range(COLUMN_COUNT):
+		for r in range(ROW_COUNT):
+			pygame.draw.rect(screen, BLUE, (c*SQUARESIZE, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
+			pygame.draw.circle(screen, BLACK, (int(c*SQUARESIZE+SQUARESIZE/2), int(r*SQUARESIZE+SQUARESIZE+SQUARESIZE/2)), RADIUS)
+	
+	for c in range(COLUMN_COUNT):
+		for r in range(ROW_COUNT):		
+			if board[r][c] == 1:
+				pygame.draw.circle(screen, RED, (int(c*SQUARESIZE+SQUARESIZE/2), height-int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
+			elif board[r][c] == 2: 
+				pygame.draw.circle(screen, YELLOW, (int(c*SQUARESIZE+SQUARESIZE/2), height-int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
+	pygame.display.update()
 
-leaveLoop = False
-turnCounter = 0
-while(leaveLoop == False):
-  if(turnCounter % 2 == 0):
-    printGameBoard()
-    while True:
-      spacePicked = input("\nChoose a space: ")
-      coordinate = coordinateParser(spacePicked)
-      try:
-        ### Check if the space is available
-        if(isSpaceAvailable(coordinate) and gravityChecker(coordinate)):
-          modifyArray(coordinate, '🔵')
-          break
-        else:
-          print("Not a valid coordinate")
-      except:
-        print("Error occured. Please try again.")
-    winner = checkForWinner('🔵')
-    turnCounter += 1
-  ### It's the computers turn
-  else:
-    while True:
-      cpuChoice = [random.choice(possibleLetters), random.randint(0,5)]
-      cpuCoordinate = coordinateParser(cpuChoice)
-      if(isSpaceAvailable(cpuCoordinate) and gravityChecker(cpuCoordinate)):
-        modifyArray(cpuCoordinate, '🔴')
-        break
-    turnCounter += 1
-    winner = checkForWinner('🔴')
 
-  if(winner):
-    printGameBoard()
-    break
+board = create_board()
+print_board(board)
+game_over = False
+turn = 0
+
+pygame.init()
+
+SQUARESIZE = 100
+
+width = COLUMN_COUNT * SQUARESIZE
+height = (ROW_COUNT+1) * SQUARESIZE
+
+size = (width, height)
+
+RADIUS = int(SQUARESIZE/2 - 5)
+
+screen = pygame.display.set_mode(size)
+draw_board(board)
+pygame.display.update()
+
+myfont = pygame.font.SysFont("monospace", 75)
+
+while not game_over:
+
+	for event in pygame.event.get():
+		if event.type == pygame.QUIT:
+			sys.exit()
+
+		if event.type == pygame.MOUSEMOTION:
+			pygame.draw.rect(screen, BLACK, (0,0, width, SQUARESIZE))
+			posx = event.pos[0]
+			if turn == 0:
+				pygame.draw.circle(screen, RED, (posx, int(SQUARESIZE/2)), RADIUS)
+			else: 
+				pygame.draw.circle(screen, YELLOW, (posx, int(SQUARESIZE/2)), RADIUS)
+		pygame.display.update()
+
+		if event.type == pygame.MOUSEBUTTONDOWN:
+			pygame.draw.rect(screen, BLACK, (0,0, width, SQUARESIZE))
+			#print(event.pos)
+			# Ask for Player 1 Input
+			if turn == 0:
+				posx = event.pos[0]
+				col = int(math.floor(posx/SQUARESIZE))
+
+				if is_valid_location(board, col):
+					row = get_next_open_row(board, col)
+					drop_piece(board, row, col, 1)
+
+					if winning_move(board, 1):
+						label = myfont.render("Player 1 wins!!", 1, RED)
+						screen.blit(label, (40,10))
+						game_over = True
+
+
+			# # Ask for Player 2 Input
+			else:				
+				posx = event.pos[0]
+				col = int(math.floor(posx/SQUARESIZE))
+
+				if is_valid_location(board, col):
+					row = get_next_open_row(board, col)
+					drop_piece(board, row, col, 2)
+
+					if winning_move(board, 2):
+						label = myfont.render("Player 2 wins!!", 1, YELLOW)
+						screen.blit(label, (40,10))
+						game_over = True
+
+			print_board(board)
+			draw_board(board)
+
+			turn += 1
+			turn = turn % 2
+
+			if game_over:
+				pygame.time.wait(3000)
